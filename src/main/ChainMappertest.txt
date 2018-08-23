@@ -1,0 +1,72 @@
+package com.mapreduce.eclat;
+
+import com.mapreduce.eclat.mapper.WordCountMapper;
+import com.mapreduce.eclat.reducers.WordCountReducer;
+import com.mapreduce.eclat.writables.TripleSet;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.mapred.lib.ChainMapper;
+import org.apache.hadoop.mapred.lib.ChainReducer;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+public class DEclat extends Configured implements Tool {
+
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(),
+                new DEclat(), new String[] {"/home/yordan/workspace/hadoop-dEclat-Map-Reduce/testSets", "/home/yordan/workspace/hadoop-dEclat-Map-Reduce/out"});
+        System.exit(res);
+    }
+
+	@Override
+	public int run(String[] arg0) throws Exception {
+		Configuration conf = new Configuration();
+		String[] otherArgs = new GenericOptionsParser(conf, arg0).getRemainingArgs();
+		if (otherArgs.length != 2) {
+			System.err.println("Usage: DEclat <in> <out>");
+			System.exit(2);
+		}
+		JobConf job = new JobConf(conf);
+//		Job job = new Job(conf, "StackOverflow Comment Word Count");
+		job.setJarByClass(DEclat.class);
+//		job.setMapperClass(WordCountMapper.class);
+//		job.setCombinerClass(WordCountReducer.class);
+//		job.setReducerClass(WordCountReducer.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(TripleSet.class);
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+		FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]+ "1"));
+//		boolean success = job.waitForCompletion(true);
+		JobConf firstMapConf = new JobConf(false);
+        ChainMapper.addMapper(job,
+                WordCountMapper.class,
+                Object.class,
+                Text.class,
+                Text.class,
+                TripleSet.class,
+                true,
+                firstMapConf);
+        JobConf firstReduceConf = new JobConf(false);
+        ChainReducer.setReducer(job,
+                WordCountReducer.class,
+                Text.class,
+                TripleSet.class,
+                Text.class,
+                TripleSet.class,
+                true,
+                firstReduceConf
+                );
+//        JobConf secondConf = new JobConf(false);
+
+        JobClient.runJob(job);
+        return 1;
+
+
+	}
+}
